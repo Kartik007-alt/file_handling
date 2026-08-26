@@ -1,413 +1,303 @@
+"""
+📁 File Handler Pro — A Streamlit UI for file CRUD operations
+Create, Read, Update, and Delete files right from your browser.
+"""
+
 import streamlit as st
 from pathlib import Path
-import os
-import time
+import datetime
 
-# ─── Page Config ───────────────────────────────────────────────────────────────
+# ----------------------------- PAGE CONFIG -----------------------------
 st.set_page_config(
-    page_title="FileForge",
-    page_icon="🗂️",
+    page_title="File Handler Pro",
+    page_icon=":page_facing_up:",
     layout="centered",
-    initial_sidebar_state="collapsed",
+    initial_sidebar_state="expanded",
 )
 
-# ─── Custom CSS ────────────────────────────────────────────────────────────────
+# ----------------------------- CUSTOM CSS -----------------------------
 st.markdown("""
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap');
+    html, body, [class*="css"] {
+        font-family: 'Inter', -apple-system, sans-serif;
+    }
 
-/* ── Root & Background ── */
-:root {
-    --bg:        #0d0d0d;
-    --surface:   #141414;
-    --border:    #2a2a2a;
-    --accent:    #c8f060;
-    --accent2:   #60c8f0;
-    --danger:    #f06060;
-    --text:      #e8e8e8;
-    --muted:     #666;
-    --radius:    12px;
-}
+    /* ---- Header ---- */
+    .eyebrow {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.72rem;
+        font-weight: 500;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: #4F46E5;
+        margin-bottom: 0.35rem;
+    }
+    .main-title {
+        font-size: 2.1rem;
+        font-weight: 700;
+        color: #111827;
+        letter-spacing: -0.02em;
+        margin-bottom: 0.3rem;
+    }
+    .sub-title {
+        color: #6B7280;
+        font-size: 0.95rem;
+        margin-bottom: 1.25rem;
+    }
+    .header-rule {
+        border: none;
+        border-top: 1px solid #E5E7EB;
+        margin: 0 0 1.75rem 0;
+    }
 
-html, body, [data-testid="stAppViewContainer"] {
-    background-color: var(--bg) !important;
-    color: var(--text) !important;
-    font-family: 'Syne', sans-serif;
-}
+    /* ---- Buttons ---- */
+    .stButton>button {
+        border-radius: 6px;
+        font-weight: 600;
+        font-size: 0.9rem;
+        padding: 0.5rem 1.1rem;
+        border: 1px solid transparent;
+        transition: all 0.15s ease;
+    }
+    .stButton>button[kind="primary"] {
+        background-color: #4F46E5;
+        border-color: #4F46E5;
+    }
+    .stButton>button[kind="primary"]:hover {
+        background-color: #4338CA;
+        border-color: #4338CA;
+    }
+    .stButton>button:not([kind="primary"]) {
+        background-color: #FFFFFF;
+        color: #374151;
+        border-color: #D1D5DB;
+    }
+    .stButton>button:not([kind="primary"]):hover {
+        border-color: #9CA3AF;
+        color: #111827;
+    }
 
-[data-testid="stAppViewContainer"] {
-    background:
-        radial-gradient(ellipse 60% 40% at 80% 10%, rgba(200,240,96,.08) 0%, transparent 70%),
-        radial-gradient(ellipse 50% 35% at 10% 90%, rgba(96,200,240,.06) 0%, transparent 70%),
-        var(--bg);
-}
+    /* ---- Tabs ---- */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 4px;
+        border-bottom: 1px solid #E5E7EB;
+    }
+    .stTabs [data-baseweb="tab"] {
+        font-weight: 500;
+        color: #6B7280;
+        padding: 0.5rem 1rem;
+    }
+    .stTabs [aria-selected="true"] {
+        color: #4F46E5 !important;
+        font-weight: 600;
+    }
 
-/* hide default Streamlit chrome */
-#MainMenu, footer, header { visibility: hidden; }
-[data-testid="stDecoration"] { display: none; }
+    /* ---- Content box (Read tab) ---- */
+    .file-box {
+        background-color: #F9FAFB;
+        border: 1px solid #E5E7EB;
+        border-radius: 8px;
+        padding: 0.25rem 1rem;
+        margin-top: 0.75rem;
+    }
 
-/* ── Hero Banner ── */
-.hero {
-    text-align: center;
-    padding: 3rem 1rem 2rem;
-    position: relative;
-}
-.hero-tag {
-    display: inline-block;
-    font-family: 'Space Mono', monospace;
-    font-size: .72rem;
-    letter-spacing: .18em;
-    text-transform: uppercase;
-    color: var(--accent);
-    border: 1px solid rgba(200,240,96,.35);
-    border-radius: 99px;
-    padding: .3rem 1rem;
-    margin-bottom: 1.4rem;
-}
-.hero-title {
-    font-size: clamp(2.6rem, 7vw, 4.5rem);
-    font-weight: 800;
-    line-height: 1.05;
-    letter-spacing: -.02em;
-    margin: 0 0 .8rem;
-    background: linear-gradient(135deg, var(--text) 30%, var(--accent) 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-}
-.hero-sub {
-    font-size: 1rem;
-    color: var(--muted);
-    font-family: 'Space Mono', monospace;
-    margin: 0;
-}
+    /* ---- Sidebar file cards ---- */
+    .sidebar-title {
+        font-weight: 600;
+        font-size: 0.95rem;
+        color: #111827;
+        margin-bottom: 0.6rem;
+    }
+    .file-card {
+        background-color: #FFFFFF;
+        border: 1px solid #E5E7EB;
+        border-radius: 6px;
+        padding: 0.55rem 0.75rem;
+        margin-bottom: 0.5rem;
+    }
+    .file-card .fname {
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 0.82rem;
+        font-weight: 500;
+        color: #1F2937;
+        word-break: break-all;
+    }
+    .file-card .fmeta {
+        font-size: 0.74rem;
+        color: #9CA3AF;
+        margin-top: 0.15rem;
+    }
+    .empty-note {
+        font-size: 0.85rem;
+        color: #9CA3AF;
+        font-style: italic;
+    }
 
-/* ── Operation Cards ── */
-.op-grid {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: .75rem;
-    margin: 2rem 0 2.5rem;
-}
-.op-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 1.1rem .8rem;
-    text-align: center;
-    cursor: pointer;
-    transition: border-color .2s, transform .15s;
-    text-decoration: none;
-}
-.op-card:hover { border-color: var(--accent); transform: translateY(-2px); }
-.op-card.active { border-color: var(--accent); background: rgba(200,240,96,.07); }
-.op-icon { font-size: 1.6rem; margin-bottom: .5rem; }
-.op-label {
-    font-size: .75rem;
-    font-weight: 700;
-    letter-spacing: .08em;
-    text-transform: uppercase;
-    color: var(--muted);
-}
-.op-card.active .op-label { color: var(--accent); }
-
-/* ── Panel Card ── */
-.panel {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 2rem 2rem 2.5rem;
-    margin-bottom: 2rem;
-}
-.panel-title {
-    font-size: 1.25rem;
-    font-weight: 700;
-    margin-bottom: 1.5rem;
-    display: flex;
-    align-items: center;
-    gap: .6rem;
-    color: var(--text);
-}
-.panel-title span { font-size: 1.4rem; }
-
-/* ── Streamlit widget overrides ── */
-[data-testid="stTextInput"] > div > div > input,
-[data-testid="stTextArea"] textarea {
-    background: #1a1a1a !important;
-    border: 1px solid var(--border) !important;
-    border-radius: 8px !important;
-    color: var(--text) !important;
-    font-family: 'Space Mono', monospace !important;
-    font-size: .9rem !important;
-    padding: .7rem 1rem !important;
-    transition: border-color .2s !important;
-}
-[data-testid="stTextInput"] > div > div > input:focus,
-[data-testid="stTextArea"] textarea:focus {
-    border-color: var(--accent) !important;
-    box-shadow: 0 0 0 3px rgba(200,240,96,.12) !important;
-}
-
-label[data-testid="stWidgetLabel"] p {
-    font-family: 'Space Mono', monospace !important;
-    font-size: .78rem !important;
-    letter-spacing: .06em !important;
-    text-transform: uppercase !important;
-    color: var(--muted) !important;
-    margin-bottom: .4rem !important;
-}
-
-/* Primary button */
-.stButton > button {
-    background: var(--accent) !important;
-    color: #0d0d0d !important;
-    border: none !important;
-    border-radius: 8px !important;
-    font-family: 'Syne', sans-serif !important;
-    font-weight: 700 !important;
-    font-size: .9rem !important;
-    letter-spacing: .04em !important;
-    padding: .6rem 1.8rem !important;
-    transition: opacity .2s, transform .15s !important;
-    width: 100%;
-}
-.stButton > button:hover {
-    opacity: .88 !important;
-    transform: translateY(-1px) !important;
-}
-
-/* Radio buttons */
-[data-testid="stRadio"] > div {
-    flex-direction: row !important;
-    gap: .8rem !important;
-    flex-wrap: wrap !important;
-}
-[data-testid="stRadio"] > div > label {
-    background: #1a1a1a;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: .5rem 1.1rem;
-    cursor: pointer;
-    font-family: 'Space Mono', monospace;
-    font-size: .8rem;
-    transition: border-color .2s;
-}
-[data-testid="stRadio"] > div > label:hover { border-color: var(--accent); }
-
-/* ── Alerts / Feedback ── */
-.msg-success, .msg-error, .msg-info {
-    border-radius: 10px;
-    padding: .9rem 1.2rem;
-    font-family: 'Space Mono', monospace;
-    font-size: .85rem;
-    margin-top: 1rem;
-    display: flex;
-    align-items: center;
-    gap: .7rem;
-}
-.msg-success { background: rgba(200,240,96,.1);  border: 1px solid rgba(200,240,96,.3); color: var(--accent); }
-.msg-error   { background: rgba(240,96,96,.1);   border: 1px solid rgba(240,96,96,.3);  color: var(--danger); }
-.msg-info    { background: rgba(96,200,240,.1);  border: 1px solid rgba(96,200,240,.3); color: var(--accent2); }
-
-/* ── File content box ── */
-.file-content {
-    background: #111;
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 1.2rem 1.4rem;
-    font-family: 'Space Mono', monospace;
-    font-size: .85rem;
-    color: var(--accent2);
-    white-space: pre-wrap;
-    word-break: break-word;
-    line-height: 1.7;
-    margin-top: 1rem;
-    max-height: 300px;
-    overflow-y: auto;
-}
-
-/* ── Divider ── */
-.divider {
-    border: none;
-    border-top: 1px solid var(--border);
-    margin: 1.4rem 0;
-}
-
-/* ── Footer ── */
-.footer {
-    text-align: center;
-    color: var(--muted);
-    font-family: 'Space Mono', monospace;
-    font-size: .72rem;
-    padding: 2rem 0 3rem;
-    letter-spacing: .05em;
-}
-.footer a { color: var(--accent); text-decoration: none; }
+    footer {visibility: hidden;}
+    #MainMenu {visibility: hidden;}
 </style>
 """, unsafe_allow_html=True)
 
+# ----------------------------- WORKSPACE -----------------------------
+# All files are managed inside this sandboxed folder so the app stays safe & tidy
+WORKSPACE = Path("workspace_files")
+WORKSPACE.mkdir(exist_ok=True)
 
-# ─── Helpers ──────────────────────────────────────────────────────────────────
-def success(msg): st.markdown(f'<div class="msg-success">✅ {msg}</div>', unsafe_allow_html=True)
-def error(msg):   st.markdown(f'<div class="msg-error">✗ {msg}</div>',   unsafe_allow_html=True)
-def info(msg):    st.markdown(f'<div class="msg-info">ℹ {msg}</div>',    unsafe_allow_html=True)
+# ----------------------------- HEADER -----------------------------
+st.markdown('<p class="eyebrow">Python · Streamlit</p>', unsafe_allow_html=True)
+st.markdown('<p class="main-title">File Handler Pro</p>', unsafe_allow_html=True)
+st.markdown('<p class="sub-title">A lightweight interface for creating, reading, updating, and deleting files.</p>', unsafe_allow_html=True)
+st.markdown('<hr class="header-rule">', unsafe_allow_html=True)
 
-BASE_DIR = Path("fileforge_files")
-BASE_DIR.mkdir(exist_ok=True)
+# ----------------------------- SIDEBAR: FILE EXPLORER -----------------------------
+with st.sidebar:
+    st.markdown('<p class="sidebar-title">Workspace Files</p>', unsafe_allow_html=True)
+    search_term = st.text_input("Search files", placeholder="Filter by name...", key="sidebar_search", label_visibility="collapsed")
 
-def safe_path(name: str) -> Path:
-    return BASE_DIR / name.strip()
+    all_files = sorted([f for f in WORKSPACE.iterdir() if f.is_file()])
+    files = [f for f in all_files if search_term.lower() in f.name.lower()] if search_term else all_files
 
-def list_files():
-    return [f.name for f in sorted(BASE_DIR.iterdir()) if f.is_file()]
+    st.markdown("<div style='margin-top: 0.75rem;'></div>", unsafe_allow_html=True)
 
-
-# ─── Hero ─────────────────────────────────────────────────────────────────────
-st.markdown("""
-<div class="hero">
-    <div class="hero-tag">🗂 File Management System</div>
-    <h1 class="hero-title">FileForge</h1>
-    <p class="hero-sub">create · read · update · delete — elegantly</p>
-</div>
-""", unsafe_allow_html=True)
-
-
-# ─── Operation Selector ────────────────────────────────────────────────────────
-if "op" not in st.session_state:
-    st.session_state.op = "Create"
-
-ops = [("✦ Create", "Create"), ("◎ Read", "Read"), ("⟳ Update", "Update"), ("✕ Delete", "Delete")]
-
-cols = st.columns(4)
-for col, (label, key) in zip(cols, ops):
-    with col:
-        active = "active" if st.session_state.op == key else ""
-        st.markdown(f"""
-        <div class="op-card {active}" id="op-{key}">
-            <div class="op-label">{label}</div>
-        </div>""", unsafe_allow_html=True)
-        if st.button(key, key=f"btn_{key}", use_container_width=True):
-            st.session_state.op = key
-            st.rerun()
-
-op = st.session_state.op
-
-# ─── Panel ────────────────────────────────────────────────────────────────────
-icons = {"Create": "✦", "Read": "◎", "Update": "⟳", "Delete": "✕"}
-
-st.markdown(f"""
-<div class="panel">
-    <div class="panel-title"><span>{icons[op]}</span> {op} File</div>
-""", unsafe_allow_html=True)
-
-# ── CREATE ────────────────────────────────────────────────────────────────────
-if op == "Create":
-    filename = st.text_input("File name", placeholder="e.g.  notes.txt")
-    content  = st.text_area("File content", placeholder="Start writing…", height=160)
-
-    if st.button("Create File"):
-        if not filename:
-            error("Please enter a file name.")
-        else:
-            path = safe_path(filename)
-            if path.exists():
-                error(f"'{filename}' already exists. Choose a different name.")
-            else:
-                path.write_text(content)
-                success(f"'{filename}' created successfully!")
-
-# ── READ ──────────────────────────────────────────────────────────────────────
-elif op == "Read":
-    files = list_files()
-    if not files:
-        info("No files yet. Create one first!")
-    else:
-        filename = st.selectbox("Select a file to read", files)
-        if st.button("Read File"):
-            path = safe_path(filename)
-            content = path.read_text()
-            if content.strip():
-                st.markdown(f'<div class="file-content">{content}</div>', unsafe_allow_html=True)
-            else:
-                info("This file is empty.")
-
-# ── UPDATE ────────────────────────────────────────────────────────────────────
-elif op == "Update":
-    files = list_files()
-    if not files:
-        info("No files yet. Create one first!")
-    else:
-        filename = st.selectbox("Select a file to update", files)
-        st.markdown("<hr class='divider'>", unsafe_allow_html=True)
-
-        action = st.radio("Operation", ["Rename", "Append content", "Overwrite content"], horizontal=True)
-
-        if action == "Rename":
-            new_name = st.text_input("New file name", placeholder="e.g.  renamed.txt")
-            if st.button("Rename File"):
-                if not new_name:
-                    error("Please enter a new name.")
-                elif safe_path(new_name).exists():
-                    error(f"'{new_name}' already exists.")
-                else:
-                    safe_path(filename).rename(safe_path(new_name))
-                    success(f"Renamed to '{new_name}' successfully!")
-                    st.rerun()
-
-        elif action == "Append content":
-            data = st.text_area("Content to append", height=130)
-            if st.button("Append"):
-                if not data:
-                    error("Nothing to append.")
-                else:
-                    with open(safe_path(filename), "a") as f:
-                        f.write("\n" + data)
-                    success("Content appended successfully!")
-
-        else:  # Overwrite
-            current = safe_path(filename).read_text()
-            data = st.text_area("New content (replaces everything)", value=current, height=160)
-            if st.button("Overwrite File"):
-                safe_path(filename).write_text(data)
-                success("File overwritten successfully!")
-
-# ── DELETE ────────────────────────────────────────────────────────────────────
-elif op == "Delete":
-    files = list_files()
-    if not files:
-        info("No files to delete.")
-    else:
-        filename = st.selectbox("Select a file to delete", files)
-        st.markdown(
-            f'<div class="msg-error" style="margin-top:.6rem">⚠ This will permanently delete <b>{filename}</b>. This cannot be undone.</div>',
-            unsafe_allow_html=True,
-        )
-        confirm = st.checkbox(f'I understand — delete "{filename}"')
-        if st.button("Delete File"):
-            if not confirm:
-                error("Please check the confirmation box first.")
-            else:
-                safe_path(filename).unlink()
-                success(f"'{filename}' deleted successfully!")
-                st.rerun()
-
-st.markdown("</div>", unsafe_allow_html=True)  # close .panel
-
-# ─── File List Sidebar ─────────────────────────────────────────────────────────
-files = list_files()
-if files:
-    with st.expander(f"📁  {len(files)} file{'s' if len(files)!=1 else ''} in workspace", expanded=False):
+    if files:
         for f in files:
-            size = (BASE_DIR / f).stat().st_size
+            size_kb = f.stat().st_size / 1024
+            modified = datetime.datetime.fromtimestamp(f.stat().st_mtime).strftime("%d %b, %H:%M")
             st.markdown(
-                f'<span style="font-family:Space Mono,monospace;font-size:.82rem;color:#888">📄 {f}'
-                f'<span style="float:right;color:#555">{size} B</span></span><br>',
+                f"""<div class="file-card">
+                    <div class="fname">{f.name}</div>
+                    <div class="fmeta">{size_kb:.1f} KB &nbsp;·&nbsp; {modified}</div>
+                </div>""",
                 unsafe_allow_html=True,
             )
+    elif all_files and search_term:
+        st.markdown(f'<p class="empty-note">No files match "{search_term}".</p>', unsafe_allow_html=True)
+    else:
+        st.markdown('<p class="empty-note">No files yet. Create one to get started.</p>', unsafe_allow_html=True)
 
-# ─── Footer ───────────────────────────────────────────────────────────────────
-st.markdown("""
-<div class="footer">
-    Built with ♥ using Python & Streamlit &nbsp;·&nbsp; FileForge
-</div>
-""", unsafe_allow_html=True)
+    st.divider()
+    st.caption("Built with ❤️ using Python & Streamlit")
+
+# ----------------------------- TABS -----------------------------
+tab_create, tab_read, tab_update, tab_delete = st.tabs(
+    ["Create", "Read", "Update", "Delete"]
+)
+
+# ----------------------------- CREATE -----------------------------
+with tab_create:
+    st.subheader("Create a New File")
+    name = st.text_input("File name", placeholder="e.g. notes.txt", key="create_name")
+    content = st.text_area("File content", placeholder="Type something...", key="create_content", height=150)
+
+    if st.button("Create File", type="primary", key="create_btn"):
+        if not name.strip():
+            st.warning("Please enter a file name.")
+        else:
+            path = WORKSPACE / name
+            if path.exists():
+                st.error(f"A file named **{name}** already exists.")
+            else:
+                try:
+                    path.write_text(content)
+                    st.success(f"File **{name}** created successfully.")
+                except Exception as err:
+                    st.error(f"An error occurred: {err}")
+
+# ----------------------------- READ -----------------------------
+with tab_read:
+    st.subheader("Read a File")
+    files = sorted([f.name for f in WORKSPACE.iterdir() if f.is_file()])
+
+    if not files:
+        st.info("No files available yet. Create one first!")
+    else:
+        selected = st.selectbox("Choose a file to view", files, key="read_select")
+        if st.button("Read File", key="read_btn"):
+            path = WORKSPACE / selected
+            try:
+                text = path.read_text()
+                st.markdown('<div class="file-box">', unsafe_allow_html=True)
+                st.code(text if text.strip() else "(This file is empty)", language="text")
+                st.markdown('</div>', unsafe_allow_html=True)
+                st.download_button(
+                    label="Download this file",
+                    data=text,
+                    file_name=selected,
+                    mime="text/plain",
+                    key="download_btn",
+                )
+            except Exception as err:
+                st.error(f"An error occurred: {err}")
+
+# ----------------------------- UPDATE -----------------------------
+with tab_update:
+    st.subheader("Update a File")
+    files = sorted([f.name for f in WORKSPACE.iterdir() if f.is_file()])
+
+    if not files:
+        st.info("No files available yet. Create one first!")
+    else:
+        selected = st.selectbox("Choose a file to update", files, key="update_select")
+        operation = st.radio(
+            "What would you like to do?",
+            ["Rename", "Append content", "Overwrite content"],
+            horizontal=True,
+            key="update_op",
+        )
+        path = WORKSPACE / selected
+
+        if operation == "Rename":
+            new_name = st.text_input("New file name", key="rename_input")
+            if st.button("Rename", type="primary", key="rename_btn"):
+                new_path = WORKSPACE / new_name
+                if not new_name.strip():
+                    st.warning("Please enter a new file name.")
+                elif new_path.exists():
+                    st.error(f"A file named **{new_name}** already exists.")
+                else:
+                    try:
+                        path.rename(new_path)
+                        st.success(f"Renamed to **{new_name}** successfully.")
+                    except Exception as err:
+                        st.error(f"An error occurred: {err}")
+
+        elif operation == "Append content":
+            extra = st.text_area("Content to append", key="append_input", height=100)
+            if st.button("Append", type="primary", key="append_btn"):
+                try:
+                    with open(path, "a") as fs:
+                        fs.write("\n" + extra)
+                    st.success(f"Content appended to **{selected}**.")
+                except Exception as err:
+                    st.error(f"An error occurred: {err}")
+
+        else:  # Overwrite
+            new_content = st.text_area("New content (replaces everything)", key="overwrite_input", height=150)
+            if st.button("Overwrite", type="primary", key="overwrite_btn"):
+                try:
+                    path.write_text(new_content)
+                    st.success(f"**{selected}** overwritten successfully.")
+                except Exception as err:
+                    st.error(f"An error occurred: {err}")
+
+# ----------------------------- DELETE -----------------------------
+with tab_delete:
+    st.subheader("Delete a File")
+    files = sorted([f.name for f in WORKSPACE.iterdir() if f.is_file()])
+
+    if not files:
+        st.info("No files available yet. Nothing to delete.")
+    else:
+        selected = st.selectbox("Choose a file to delete", files, key="delete_select")
+        st.warning("This action is irreversible.")
+        confirm = st.checkbox(f"I confirm I want to permanently delete '{selected}'", key="delete_confirm")
+
+        if st.button("Delete File", type="primary", key="delete_btn", disabled=not confirm):
+            try:
+                (WORKSPACE / selected).unlink()
+                st.success(f"**{selected}** deleted successfully.")
+                st.rerun()
+            except Exception as err:
+                st.error(f"An error occurred: {err}")
