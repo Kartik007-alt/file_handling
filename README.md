@@ -18,7 +18,7 @@ A simple and user-friendly File Handling System designed to make uploading, mana
 - JavaScript
 - Python
 
-## 📸 Project Preview
+##  Project Preview
 
 (http://localhost:8501/)
 
